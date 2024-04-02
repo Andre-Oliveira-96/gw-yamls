@@ -93,7 +93,7 @@ env:
   # you may set this to "traditional_compatible" or "expressions" to use the new
   # DSL-based router
   role: control_plane
-  
+
   # Cluster config values ### Double Check the certificates!!! ###
   cluster_cert: /etc/secrets/kong-cluster-cert/tls.crt
   cluster_cert_key: /etc/secrets/kong-cluster-cert/tls.key
@@ -104,12 +104,12 @@ env:
       secretKeyRef:
         key: password
         name: kong-enterprise-superuser-password
-  
+
   router_flavor: "traditional_compatible"
   nginx_worker_processes: "2"
   prefix: /kong_prefix/
   log_level: info
-  audit_log: "on"  
+  audit_log: "on"
 
   # Open Telemetry values to expose traces
   opentelemetry_tracing: all
@@ -120,15 +120,15 @@ env:
   admin_gui_protocol: https
   admin_gui_access_log: /dev/stdout
   admin_gui_error_log: /dev/stderr
-  admin_gui_url: https://manager.kong.tst.berzuk.com #CHANGEME
-  admin_api_uri: https://admin.kong.tst.berzuk.com #CHANGEME
+  admin_gui_url: https://manager.kong.prd.berzuk.com #CHANGEME
+  admin_api_uri: https://admin.kong.prd.berzuk.com #CHANGEME
 
   portal_api_access_log: /dev/stdout
   portal_api_error_log: /dev/stderr
-  portal_api_url: https://portalapi.kong.tst.berzuk.com #CHANGEME
+  portal_api_url: https://portalapi.kong.prd.berzuk.com #CHANGEME
   portal_cors_origins: "*"
   portal_gui_protocol: "https"
-  portal_gui_host: portal.kong.tst.berzuk.com #CHANGEME
+  portal_gui_host: portal.kong.prd.berzuk.com #CHANGEME
   portal_session_conf:
     valueFrom:
       secretKeyRef:
@@ -140,14 +140,14 @@ env:
 
   # This is the section that we need to configure the database settings
   ## REVIEW THIS VALUES BEFORE DEPLOYING
-  database: "postgress"
+  database: "postgres"
   db_cache_ttl: "1"
-  pg_database: "kongdb_tst" ## CHANGEME
-  pg_host: "pgsql.border.berzuk.com" ## CHANGEME
+  pg_database: "kong" ## CHANGEME
+  pg_host: "db-postgresql.kong.svc.cluster.local" ## CHANGEME
   pg_port: 5432
   pg_ssl: "off"
   pg_ssl_verify: "off"
-  pg_user: 
+  pg_user: "kong"
   pg_password:
     valueFrom:
       secretKeyRef:
@@ -200,9 +200,9 @@ admin:
   # Enable creating a Kubernetes service for the admin API
   # Disabling this is recommended for most ingress controller configurations
   # Enterprise users that wish to use Kong Manager with the controller should enable this
-  enabled: false
-  type: NodePort
-  loadBalancerClass:
+  enabled: true
+  type: ClusterIP
+  # loadBalancerClass:
   # To specify annotations or labels for the admin service, add them to the respective
   # "annotations" or "labels" dictionaries below.
   annotations: {}
@@ -291,7 +291,7 @@ clusterCaSecretName: ""
 # LoadBalancer" and use a TCP-only load balancer (check your Kubernetes
 # provider's documentation, as the configuration required for this varies).
 cluster:
-  enabled: false
+  enabled: true
   # To specify annotations or labels for the cluster service, add them to the respective
   # "annotations" or "labels" dictionaries below.
   annotations: {}
@@ -299,7 +299,7 @@ cluster:
   labels: {}
 
   tls:
-    enabled: false
+    enabled: true
     servicePort: 8005
     containerPort: 8005
     parameters: []
@@ -327,7 +327,7 @@ cluster:
 # Specify Kong proxy service configuration
 proxy:
   # Enable creating a Kubernetes service for the proxy
-  enabled: true
+  enabled: false
   type: LoadBalancer
   loadBalancerClass:
   # Override proxy Service name
@@ -346,7 +346,7 @@ proxy:
 
   http:
     # Enable plaintext HTTP listen for the proxy
-    enabled: true
+    enabled: false
     servicePort: 80
     containerPort: 8000
     # Set a nodePort which is available if service type is NodePort
@@ -356,7 +356,7 @@ proxy:
 
   tls:
     # Enable HTTPS listen for the proxy
-    enabled: true
+    enabled: false
     servicePort: 443
     containerPort: 8443
     # Set a target port for the TLS port in proxy service
@@ -404,7 +404,11 @@ proxy:
     annotations: {}
     labels: {}
     # Ingress hostname
+    # TLS secret name.
+    # tls: kong-proxy.example.com-tls
     hostname:
+    # Map of ingress annotations.
+    annotations: {}
     # Ingress path (when used with hostname above).
     path: /
     # Each path in an Ingress is required to have a corresponding path type (when used with hostname above). (ImplementationSpecific/Exact/Prefix)
@@ -489,6 +493,7 @@ udpProxy:
 # "path" indicates their directory under the main plugin directory: the example
 # below will mount the contents of kong-plugin-rewriter-migrations at "/opt/kong/rewriter/migrations".
 plugins: {}
+
   # configMaps:
   # - pluginName: rewriter
   #   name: kong-plugin-rewriter
@@ -498,6 +503,7 @@ plugins: {}
   # secrets:
   # - pluginName: rewriter
   #   name: kong-plugin-rewriter
+
 # Inject specified secrets as a volume in Kong Container at path /etc/secrets/{secret-name}/
 # This can be used to override default SSL certificates.
 # Be aware that the secret name will be used verbatim, and that certain types
@@ -506,7 +512,8 @@ plugins: {}
 # secretVolumes:
 # - kong-proxy-tls
 # - kong-admin-tls
-secretVolumes: []
+secretVolumes: 
+  - kong-cluster-cert
 
 # Enable/disable migration jobs, and set annotations for them
 migrations:
@@ -545,22 +552,22 @@ migrations:
 # Kong's configuration for DB-less mode
 # Note: Use this section only if you are deploying Kong in DB-less mode
 # and not as an Ingress Controller.
-dblessConfig:
-  # Either Kong's configuration is managed from an existing ConfigMap (with Key: kong.yml)
-  configMap: ""
-  # Or Kong's configuration is managed from an existing Secret (with Key: kong.yml)
-  secret: ""
-  # Or the configuration is passed in full-text below
-  config: |
-  # # _format_version: "1.1"
-  # # services:
-  # #   # Example configuration
-  # #   # - name: example.com
-  # #   #   url: http://example.com
-  # #   #   routes:
-  # #   #   - name: example
-  # #   #     paths:
-  # #   #     - "/example"
+# dblessConfig:
+#   # Either Kong's configuration is managed from an existing ConfigMap (with Key: kong.yml)
+#   configMap: ""
+#   # Or Kong's configuration is managed from an existing Secret (with Key: kong.yml)
+#   secret: ""
+#   # Or the configuration is passed in full-text below
+#   config: |
+#   # # _format_version: "1.1"
+#   # # services:
+#   # #   # Example configuration
+#   # #   # - name: example.com
+#   # #   #   url: http://example.com
+#   # #   #   routes:
+#   # #   #   - name: example
+#   # #   #     paths:
+#   # #   #     - "/example"
   ## Optionally specify any extra sidecar containers to be included in the
   ## migration jobs
   ## See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#container-v1-core
@@ -628,7 +635,7 @@ ingressController:
   envFrom: []
 
   admissionWebhook:
-    enabled: true
+    enabled: false
     failurePolicy: Ignore
     port: 8080
     certificate:
@@ -673,7 +680,7 @@ ingressController:
     failureThreshold: 3
   readinessProbe:
     httpGet:
-      path: "/readyz"
+      path: "/healthz"
       port: 10254
       scheme: HTTP
     initialDelaySeconds: 5
@@ -691,44 +698,44 @@ ingressController:
   #     cpu: 50m
   #     memory: 128Mi
 
-  konnect:
-    enabled: false
+  # konnect:
+  #   enabled: false
 
-    # Specifies a Konnect Runtime Group's ID that the controller will push its data-plane config to.
-    runtimeGroupID: ""
+  #   # Specifies a Konnect Runtime Group's ID that the controller will push its data-plane config to.
+  #   runtimeGroupID: ""
 
-    # Specifies a Konnect API hostname that the controller will use to push its data-plane config to.
-    # By default, this is set to US region's production API hostname.
-    # If you are using a different region, you can set this to the appropriate hostname (e.g. "eu.kic.api.konghq.com").
-    apiHostname: "us.kic.api.konghq.com"
+  #   # Specifies a Konnect API hostname that the controller will use to push its data-plane config to.
+  #   # By default, this is set to US region's production API hostname.
+  #   # If you are using a different region, you can set this to the appropriate hostname (e.g. "eu.kic.api.konghq.com").
+  #   apiHostname: "us.kic.api.konghq.com"
 
-    # Specifies a secret that contains a client TLS certificate that the controller
-    # will use to authenticate against Konnect APIs.
-    tlsClientCertSecretName: "konnect-client-tls"
+  #   # Specifies a secret that contains a client TLS certificate that the controller
+  #   # will use to authenticate against Konnect APIs.
+  #   tlsClientCertSecretName: "konnect-client-tls"
 
-    license:
-      # Specifies whether the controller should fetch a license from Konnect and apply it to managed Gateways.
-      enabled: false
+  #   license:
+  #     # Specifies whether the controller should fetch a license from Konnect and apply it to managed Gateways.
+  #     enabled: false
 
-  adminApi:
-    tls:
-      client:
-        # Enable TLS client authentication for the Admin API.
-        enabled: false
+  # adminApi:
+  #   tls:
+  #     client:
+  #       # Enable TLS client authentication for the Admin API.
+  #       enabled: false
 
-        # If set to false, Helm will generate certificates for you.
-        # If set to true, you are expected to provide your own secret (see secretName, caSecretName).
-        certProvided: false
+  #       # If set to false, Helm will generate certificates for you.
+  #       # If set to true, you are expected to provide your own secret (see secretName, caSecretName).
+  #       certProvided: false
 
-        # Client TLS certificate/key pair secret name that Ingress Controller will use to authenticate with Kong Admin API.
-        # If certProvided is set to false, it is optional (can be specified though if you want to force Helm to use
-        # a specific secret name).
-        secretName: ""
+  #       # Client TLS certificate/key pair secret name that Ingress Controller will use to authenticate with Kong Admin API.
+  #       # If certProvided is set to false, it is optional (can be specified though if you want to force Helm to use
+  #       # a specific secret name).
+  #       secretName: ""
 
-        # CA TLS certificate/key pair secret name that the client TLS certificate is signed by.
-        # If certProvided is set to false, it is optional (can be specified though if you want to force Helm to use
-        # a specific secret name).
-        caSecretName: ""
+  #       # CA TLS certificate/key pair secret name that the client TLS certificate is signed by.
+  #       # If certProvided is set to false, it is optional (can be specified though if you want to force Helm to use
+  #       # a specific secret name).
+  #       caSecretName: ""
 
 
 # -----------------------------------------------------------------------------
@@ -830,8 +837,8 @@ certificates:
     # Issuers used by the control and data plane releases must match for this certificate.
     issuer: ""
     clusterIssuer: ""
-    commonName: "kong_clustering"
-    dnsNames: []
+    commonName: "kong_cluster"
+    # dnsNames: []
 
 # -----------------------------------------------------------------------------
 # Miscellaneous parameters
@@ -871,7 +878,7 @@ resources: {}
 # readinessProbe for Kong pods
 readinessProbe:
   httpGet:
-    path: "/status/ready"
+    path: "/status"
     port: status
     scheme: HTTP
   initialDelaySeconds: 5
@@ -955,7 +962,7 @@ deploymentAnnotations: {}
 # When configuring an HPA, you must set resource requests on all containers via
 # "resources" and, if using the controller, "ingressController.resources" in values.yaml
 autoscaling:
-  enabled: false
+  enabled: true
   minReplicas: 2
   maxReplicas: 5
   behavior: {}
@@ -1013,16 +1020,16 @@ priorityClassName: ""
 securityContext: {}
 
 # securityContext for containers.
-containerSecurityContext:
-  readOnlyRootFilesystem: true
-  allowPrivilegeEscalation: false
-  runAsUser: 1000
-  runAsNonRoot: true
-  seccompProfile:
-    type: RuntimeDefault
-  capabilities:
-    drop:
-    - ALL
+containerSecurityContext: {}
+#  readOnlyRootFilesystem: true
+#  allowPrivilegeEscalation: false
+#  runAsUser: 1000
+#  runAsNonRoot: true
+#  seccompProfile:
+#    type: RuntimeDefault
+#  capabilities:
+#    drop:
+#    - ALL
 
 ## Optional DNS configuration for Kong pods
 # dnsPolicy: ClusterFirst
@@ -1062,18 +1069,19 @@ serviceMonitor:
 # RBAC and SMTP configuration have additional options that must all be set together
 # Other settings should be added to the "env" settings below
 enterprise:
-  enabled: false
+  enabled: true
   # Kong Enterprise license secret name
   # This secret must contain a single 'license' key, containing your base64-encoded license data
   # The license secret is required to unlock all Enterprise features. If you omit it,
   # Kong will run in free mode, with some Enterprise features disabled.
-  # license_secret: kong-enterprise-license
+  license_secret: kong-enterprise-license
   vitals:
     enabled: true
   portal:
-    enabled: false
+    enabled: true
   rbac:
-    enabled: false
+    enabled: true
+    admin_api_auth: basic-auth
     admin_gui_auth: basic-auth
     # If RBAC is enabled, this Secret must contain an admin_gui_session_conf key
     # The key value must be a secret configuration, following the example at
@@ -1081,7 +1089,8 @@ enterprise:
     session_conf_secret: kong-session-config
     # If admin_gui_auth is not set to basic-auth, provide a secret name which
     # has an admin_gui_auth_conf key containing the plugin config JSON
-    admin_gui_auth_conf_secret: CHANGEME-admin-gui-auth-conf-secret
+    admin_gui_auth_conf_secret: kong-session-config
+
   # For configuring emails and SMTP, please read through:
   # https://docs.konghq.com/enterprise/latest/developer-portal/configuration/smtp
   # https://docs.konghq.com/enterprise/latest/kong-manager/networking/email
@@ -1103,12 +1112,12 @@ enterprise:
       # string, you must create a Secret with an smtp_password key containing
       # your SMTP password and specify its name here.
       smtp_username: ''  # e.g. postmaster@example.com
-      smtp_password_secret: CHANGEME-smtp-password
+      smtp_password_secret: kong-smtp-password
 
 manager:
   # Enable creating a Kubernetes service for Kong Manager
   enabled: true
-  type: NodePort
+  type: ClusterIP
   loadBalancerClass:
   # To specify annotations or labels for the Manager service, add them to the respective
   # "annotations" or "labels" dictionaries below.
@@ -1155,7 +1164,7 @@ manager:
 portal:
   # Enable creating a Kubernetes service for the Developer Portal
   enabled: true
-  type: NodePort
+  type: ClusterIP
   loadBalancerClass:
   # To specify annotations or labels for the Portal service, add them to the respective
   # "annotations" or "labels" dictionaries below.
@@ -1165,7 +1174,7 @@ portal:
 
   http:
     # Enable plaintext HTTP listen for the Developer Portal
-    enabled: true
+    enabled: false
     servicePort: 8003
     containerPort: 8003
     # Set a nodePort which is available if service type is NodePort
@@ -1202,7 +1211,7 @@ portal:
 portalapi:
   # Enable creating a Kubernetes service for the Developer Portal API
   enabled: true
-  type: NodePort
+  type: ClusterIP
   loadBalancerClass:
   # To specify annotations or labels for the Portal API service, add them to the respective
   # "annotations" or "labels" dictionaries below.
@@ -1212,7 +1221,7 @@ portalapi:
 
   http:
     # Enable plaintext HTTP listen for the Developer Portal API
-    enabled: true
+    enabled: false
     servicePort: 8004
     containerPort: 8004
     # Set a nodePort which is available if service type is NodePort
@@ -1247,7 +1256,7 @@ portalapi:
     pathType: ImplementationSpecific
 
 clustertelemetry:
-  enabled: false
+  enabled: true
   # To specify annotations or labels for the cluster telemetry service, add them to the respective
   # "annotations" or "labels" dictionaries below.
   annotations: {}
@@ -1255,7 +1264,7 @@ clustertelemetry:
   labels: {}
 
   tls:
-    enabled: false
+    enabled: true
     servicePort: 8006
     containerPort: 8006
     parameters: []
