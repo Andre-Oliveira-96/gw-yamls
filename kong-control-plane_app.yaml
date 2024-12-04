@@ -1,0 +1,17 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kong-control-plane
+spec:
+  destination:
+    namespace: kong
+    server: 'https://kubernetes.default.svc'
+  source:
+    path: charts/kong
+    repoURL: 'https://github.com/Andre-Oliveira-96/gw-yamls.git'
+    targetRevision: main
+    helm:
+      valueFiles:
+        - kcp-values.yaml
+  sources: []
+  project: default
